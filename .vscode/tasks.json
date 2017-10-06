@@ -1,0 +1,16 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "taskName": "prepareTests",
+            "type": "shell",
+             "command": "cargo test --no-run --message-format=json | jq -r \"select(.profile.test == true) | .filenames[]\" | xargs -I '{}' cp '{}' ./target/debug/ro_scalar_set_tests",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        }
+    ]
+}
