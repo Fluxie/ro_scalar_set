@@ -45,4 +45,19 @@ mod tests {
         assert!( ! set.contains( 26 ));
         assert!( ! set.contains( 27 ));
     }
+
+    #[test]
+    fn attaching_to_buffer_succeeds() {
+
+        // Attach to a buffer.
+        let buffer = [ 1, 1, 4, 5, 1 ];
+        let set = ro_scalar_set::RoScalarSet::attach( &buffer );
+
+        // Ensure the single member in the set is found.
+        assert!( set.contains( 1 ));
+
+        // Ensure adjacent members are not found.
+        assert!( ! set.contains( 0 ));
+        assert!( ! set.contains( 2 ));
+    }
 }

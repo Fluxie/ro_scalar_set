@@ -58,14 +58,25 @@ const SIZE_INDEX: usize = 1;
 /// The index of the first bucket.
 const FIRST_BUCKET_INDEX: usize = 2;
 
+/// Defines how the data is stored in the scalar set.
+ enum Storage<'a, TA, TB> 
+    where TB: 'a {
+
+    /// The data is stored as a vector.
+    Vector { data: Vec<TA> },
+
+    /// The data is stored as a slice.
+    Slice { data: &'a[TB] }
+ }
+
 #[allow(dead_code)]
-pub struct RoScalarSet< T>
-where T: std::cmp::Ord + std::clone::Clone + Value {    
-    _storage: Vec<T>
+pub struct RoScalarSet<'a, T>
+where T: std::cmp::Ord + std::clone::Clone + Value + 'a {    
+    _storage: Storage<'a, T, T>
 }
 
-impl<T> RoScalarSet< T>
-    where T:std::cmp::Ord + std::clone::Clone + Value {    
+impl<'a, T> RoScalarSet<'a, T>
+    where T: std::cmp::Ord + std::clone::Clone + Value + 'a {    
 
     /// Returns a new integer hash set holding the specified values.
     ///
@@ -136,26 +147,24 @@ impl<T> RoScalarSet< T>
             // Get a splice for sorting.
             let ( _, remainder ) =  storage.split_at_mut( begin );
             let ( bucket,  _ )  = remainder.split_at_mut( end - begin );
-            bucket.sort();        
-        }
-        
-//        // Ensure each bucket is sorted
-//        for b in 0..( buckets - 1 ) {SIZE_INDEX
-//
-//            // Determine the indexes.
-//            let begin = storage[ ( b + first_bucket ) ].as_index();
-//            let end = storage[ ( b + first_bucket + 1 ) ].as_index();
-//            let mut previous: i32 = -1;
-//            for v_index in begin..end {
-//
-//                if previous > storage[ v_index ] {
-//                    panic!( "Invalid sort" );
-//                }
-//                previous = storage[ v_index ];
-//            }
-//        }
-        
-        return RoScalarSet { _storage: storage };
+            bucket.sort();
+        }        
+
+        let storage: Storage<T, T> = Storage::Vector { data: storage };
+        return RoScalarSet { _storage: storage  };
+    }
+
+    /// Attaches an integer hash set to a slice holding the values.
+    ///
+    /// # ArgumentRoScalarSets
+    ///
+    /// * 'values' Holds the values stored in the hash set.
+    #[allow(dead_code)]
+    pub fn attach (
+            buffer: &[T]
+    ) -> RoScalarSet<T> {
+        let storage: Storage<T, T> = Storage::Slice { data: buffer };
+        return RoScalarSet { _storage: storage  };
     }
 
     /// Checks whether the given value exists in the set or not.
@@ -180,7 +189,8 @@ impl<T> RoScalarSet< T>
     pub fn size(
         &self
     ) -> usize {
-        return self._storage[ SIZE_INDEX ].as_index();
+        let storage = self.borrow_storage();
+        return storage[ SIZE_INDEX ].as_index();
     }
 
     /// Gets the number of buckets.
@@ -188,7 +198,8 @@ impl<T> RoScalarSet< T>
     pub fn bucket_count(
         &self
     ) -> usize {
-        return self._storage[ 0 ].as_index();
+        let storage = self.borrow_storage();
+        return storage[ 0 ].as_index();
     }
     
     /// Gets a read-only slice containing the values of a bucket.
@@ -198,12 +209,26 @@ impl<T> RoScalarSet< T>
     ) -> &[T] {
         
         // Determine the bucket.
-        let bucket_id: usize = value.get_bucket_index( &self._storage[ 0 ] );
+        let storage = self.borrow_storage();
+        let bucket_id: usize = value.get_bucket_index( &storage[ 0 ] );
         let bucket_index = bucket_id + FIRST_BUCKET_INDEX;
-        let begin: usize = self._storage[ bucket_index ].as_index();
-        let end: usize = self._storage[ ( bucket_index + 1 ) ].as_index();        
-        let  ( _, remainder ) =  self._storage.split_at( begin );
+        let begin: usize = storage[ bucket_index ].as_index();
+        let end: usize = storage[ ( bucket_index + 1 ) ].as_index();        
+        let  ( _, remainder ) = storage.split_at( begin );
         let  ( bucket, _ )  = remainder.split_at( end - begin );
         return bucket;        
+    }
+
+
+    /// Borrows the storage for accessing the values.
+    fn borrow_storage(
+        &'a self
+    ) -> &'a [T] {
+        let s: &'a [T] = match &self._storage {
+            &Storage::Vector { ref data } => data.as_slice(),
+            &Storage::Slice { ref data } => data,
+       
+        };
+        return s;
     }
 }
