@@ -69,7 +69,6 @@ const FIRST_BUCKET_INDEX: usize = 2;
     Slice { data: &'a[TB] }
  }
 
-#[allow(dead_code)]
 pub struct RoScalarSet<'a, T>
 where T: std::cmp::Ord + std::clone::Clone + Value + 'a {    
     _storage: Storage<'a, T, T>
@@ -83,7 +82,6 @@ impl<'a, T> RoScalarSet<'a, T>
     /// # ArgumentRoScalarSets
     ///
     /// * 'values' Holds the values stored in the hash set.
-    #[allow(dead_code)]
     pub fn new (
             values: &[T]
     ) -> RoScalarSet<T> {
@@ -159,7 +157,6 @@ impl<'a, T> RoScalarSet<'a, T>
     /// # ArgumentRoScalarSets
     ///
     /// * 'values' Holds the values stored in the hash set.
-    #[allow(dead_code)]
     pub fn attach (
             buffer: &[T]
     ) -> RoScalarSet<T> {
@@ -168,7 +165,6 @@ impl<'a, T> RoScalarSet<'a, T>
     }
 
     /// Checks whether the given value exists in the set or not.
-    #[allow(dead_code)]
     pub fn contains(
         &self,
         value: T
@@ -185,7 +181,6 @@ impl<'a, T> RoScalarSet<'a, T>
     }
 
     /// Gets the number of members in the set.
-    #[allow(dead_code)]
     pub fn size(
         &self
     ) -> usize {
@@ -194,7 +189,6 @@ impl<'a, T> RoScalarSet<'a, T>
     }
 
     /// Gets the number of buckets.
-    #[allow(dead_code)]
     pub fn bucket_count(
         &self
     ) -> usize {

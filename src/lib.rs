@@ -1,4 +1,6 @@
-mod ro_scalar_set;
+
+pub use self::ro_scalar_set::RoScalarSet;
+pub mod ro_scalar_set;
 
 #[cfg(test)]
 mod tests {
