@@ -1,4 +1,9 @@
+extern crate byteorder;
+
 use std;
+use std::io::Write;
+use self::byteorder::NativeEndian;
+use self::byteorder::WriteBytesExt;
 
 /// The remainder of the
 pub trait Value {
@@ -22,7 +27,13 @@ pub trait Value {
     fn from_index( index: usize ) -> Self;
 
     /// Decrements the value by one.
-    fn decrement( &self ) -> Self;                  
+    fn decrement( &self ) -> Self;
+
+    /// Serializes the value.
+    fn serialize(
+        &self,
+        &mut Write
+    ) -> Result<(), std::io::Error>;
 }
 
 /// Implements value trait for i32
@@ -50,6 +61,17 @@ impl Value for i32
 
     /// Decrements the value by one.
     fn decrement( &self ) -> i32 { return self - 1; }
+
+
+    /// Serializes the value.
+    fn serialize(
+        &self,
+        writer: &mut Write
+    ) -> Result<(), std::io::Error>
+    {
+        writer.write_i32::<NativeEndian>( *self )?;
+        Ok(())
+    }
 }
 
 /// The index of the number of members in the set.
@@ -82,8 +104,8 @@ impl<'a, T> RoScalarSet<'a, T>
     /// # ArgumentRoScalarSets
     ///
     /// * 'values' Holds the values stored in the hash set.
-    pub fn new (
-            values: &[T]
+    pub fn new<'b, 'c> (
+            values: &'c[T]
     ) -> RoScalarSet<T> {
             
         // Determine the number of buckets. We introduce a 5% overhead.
@@ -157,11 +179,22 @@ impl<'a, T> RoScalarSet<'a, T>
     /// # ArgumentRoScalarSets
     ///
     /// * 'values' Holds the values stored in the hash set.
-    pub fn attach (
-            buffer: &[T]
-    ) -> RoScalarSet<T> {
-        let storage: Storage<T, T> = Storage::Slice { data: buffer };
-        return RoScalarSet { _storage: storage  };
+    pub fn attach<'b> (
+            buffer: &'b[T]
+    ) -> Result< ( RoScalarSet<'b, T>, &'b[T] ), &str > {
+
+        // Determine the lenght of this scalar set.
+        if buffer.len() < 4 {
+            return Err( "The buffer is to small" );
+        }
+        let buckets = buffer[0].as_index();
+        let values = buffer[SIZE_INDEX].as_index();
+        let total_size = FIRST_BUCKET_INDEX + ( buckets + 1 ) + values;
+
+        // Attach.
+        let ( set, remainder ) = buffer.split_at( total_size );
+        let storage: Storage<T, T> = Storage::Slice { data: set };
+        return Ok( ( RoScalarSet { _storage: storage  }, remainder ) );
     }
 
     /// Checks whether the given value exists in the set or not.
@@ -194,6 +227,21 @@ impl<'a, T> RoScalarSet<'a, T>
     ) -> usize {
         let storage = self.borrow_storage();
         return storage[ 0 ].as_index();
+    }
+
+    /// Serializes the scalar set into the given writer.
+    pub fn serialize<W>(
+        &self,
+        writer: &mut W
+    ) -> Result<(), std::io::Error>
+    where W: Write {
+
+        // Write our intern
+        let storage = self.borrow_storage();
+        for v in storage {
+            v.serialize( writer )?;
+        }
+        Ok(())
     }
     
     /// Gets a read-only slice containing the values of a bucket.
