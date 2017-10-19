@@ -106,7 +106,7 @@ impl<'a, T> RoScalarSet<'a, T>
     /// * 'values' Holds the values stored in the hash set.
     pub fn new<'b, 'c> (
             values: &'c[T]
-    ) -> RoScalarSet<T> {
+    ) -> RoScalarSet<'b,T> {
             
         // Determine the number of buckets. We introduce a 5% overhead.
         let bucket_count: usize = ( values.len() as f64 * 0.05 ).ceil() as usize;        
@@ -170,7 +170,7 @@ impl<'a, T> RoScalarSet<'a, T>
             bucket.sort();
         }        
 
-        let storage: Storage<T, T> = Storage::Vector { data: storage };
+        let storage: Storage<'b, T, T> = Storage::Vector { data: storage };
         return RoScalarSet { _storage: storage  };
     }
 
