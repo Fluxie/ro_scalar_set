@@ -5,7 +5,10 @@ use std::io::Write;
 use self::byteorder::NativeEndian;
 use self::byteorder::WriteBytesExt;
 
-/// The remainder of the
+/// Represents a value in the scalar set.
+/// The values must be able to store booking information
+/// for managing the contents of the set. These requirements
+/// are captured in this trait.
 pub trait Value {
 
     /// Gets the index of the bucket for this value.
@@ -36,7 +39,7 @@ pub trait Value {
     ) -> Result<(), std::io::Error>;
 }
 
-/// Implements value trait for i32
+/// Implements Value trait for i32
 impl Value for i32
 {
     /// Gets the index of the bucket for this value.
@@ -91,6 +94,7 @@ const FIRST_BUCKET_INDEX: usize = 2;
     Slice { data: &'a[TB] }
  }
 
+/// Scalar set cabable of storing values with Value trait.
 pub struct RoScalarSet<'a, T>
 where T: std::cmp::Ord + std::clone::Clone + Value + 'a {    
     _storage: Storage<'a, T, T>
@@ -183,7 +187,7 @@ impl<'a, T> RoScalarSet<'a, T>
             buffer: &'b[T]
     ) -> Result< ( RoScalarSet<'b, T>, &'b[T] ), &str > {
 
-        // Determine the lenght of this scalar set.
+        // Determine the length of this scalar set.
         if buffer.len() < 4 {
             return Err( "The buffer is to small" );
         }
