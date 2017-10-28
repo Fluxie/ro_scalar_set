@@ -1,7 +1,10 @@
 [package]
 name = "ro_scalar_set"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Juha Lepola <juha.lepola@gmail.com>"]
+
+[features]
+floats = [] # Adds support for floating point numbers.
 
 [dependencies]
     byteorder = "1.0"

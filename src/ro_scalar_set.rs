@@ -20,7 +20,7 @@ pub trait Value {
     /// Gets the integer value as a size.
     fn as_index( &self ) -> usize;
 
-    /// Converts the number of buckets into the value type.
+    /// Converts the number of buckets into the value type.i
     fn from_bucket_count( bucket_count: &usize ) -> Self;
 
     /// Converts the number of set members into the value type.
@@ -31,6 +31,12 @@ pub trait Value {
 
     /// Decrements the value by one.
     fn decrement( &self ) -> Self;
+
+    /// Provides total ordering for elements.
+    fn cmp(
+        &self,
+        other: &Self
+    ) -> std::cmp::Ordering;
 
     /// Serializes the value.
     fn serialize(
@@ -65,6 +71,13 @@ impl Value for i32
     /// Decrements the value by one.
     fn decrement( &self ) -> i32 { return self - 1; }
 
+    /// Provides total ordering for elements.
+    fn cmp(
+        &self,
+        other: &i32
+    ) -> std::cmp::Ordering {
+        std::cmp::Ord::cmp( self, other )
+    }
 
     /// Serializes the value.
     fn serialize(
@@ -73,6 +86,56 @@ impl Value for i32
     ) -> Result<(), std::io::Error>
     {
         writer.write_i32::<NativeEndian>( *self )?;
+        Ok(())
+    }
+}
+
+/// Implements Value trait for f32
+/// * The largest permissible value is 2^24.
+/// * Mainly implemented to provide an easy to use interface for sending the structure to GPU.
+#[cfg(any(feature="floats",test))]
+impl Value for f32
+{
+    /// Gets the index of the bucket for this value.
+    fn get_bucket_index( &self, buckets: &f32 ) -> usize {
+        return ( self.clone() as usize ) % ( buckets.clone() as usize ) ;
+    }
+
+    /// Gets a zero.
+    fn zero() -> f32 { return 0.0; }
+
+    /// Gets the integer value as a size.
+    fn as_index( &self ) -> usize { return self.clone() as usize; }
+
+    /// Converts the specified value to a value that can be stored in the container.
+    fn from_bucket_count( bucket_count: &usize ) -> f32 { return bucket_count.clone() as f32; }
+
+    /// Converts the number of set members into the value type.
+    fn from_member_count( member_count: usize ) -> f32 { return member_count as f32; }
+
+    /// Converts the given value to index.
+    fn from_index( index: usize ) -> f32 { return index as f32; }
+
+    /// Decrements the value by one.
+    fn decrement( &self ) -> f32 { return self - 1.0; }
+
+    /// Provides total ordering for elements.
+    fn cmp(
+        &self,
+        other: &f32
+    ) -> std::cmp::Ordering {
+        let me = self.clone() as i32;
+        let other = other.clone() as i32;
+        std::cmp::Ord::cmp( &me, &other )
+    }
+
+    /// Serializes the value.
+    fn serialize(
+        &self,
+        writer: &mut Write
+    ) -> Result<(), std::io::Error>
+    {
+        writer.write_f32::<NativeEndian>( *self )?;
         Ok(())
     }
 }
@@ -96,12 +159,12 @@ const FIRST_BUCKET_INDEX: usize = 2;
 
 /// Scalar set cabable of storing values with Value trait.
 pub struct RoScalarSet<'a, T>
-where T: std::cmp::Ord + std::clone::Clone + Value + 'a {    
+where T: std::clone::Clone + Value + 'a {
     _storage: Storage<'a, T, T>
 }
 
 impl<'a, T> RoScalarSet<'a, T>
-    where T: std::cmp::Ord + std::clone::Clone + Value + 'a {    
+    where T: std::clone::Clone + Value + 'a {
 
     /// Returns a new integer hash set holding the specified values.
     ///
@@ -171,7 +234,7 @@ impl<'a, T> RoScalarSet<'a, T>
             // Get a splice for sorting.
             let ( _, remainder ) =  storage.split_at_mut( begin );
             let ( bucket,  _ )  = remainder.split_at_mut( end - begin );
-            bucket.sort();
+            bucket.sort_by( |a, b| a.cmp( b ) );
         }        
 
         let storage: Storage<'b, T, T> = Storage::Vector { data: storage };
@@ -204,14 +267,14 @@ impl<'a, T> RoScalarSet<'a, T>
     /// Checks whether the given value exists in the set or not.
     pub fn contains(
         &self,
-        value: T
+        value: &T
     ) -> bool {
         
         // Get the bucket associated with the value.
         let bucket = self.get_bucket( &value );
         
         // Locate the value.
-        match bucket.binary_search( &value ) {
+        match bucket.binary_search_by( |probe| probe.cmp( &value ) ) {
             Ok( _ ) => return true,
             Err(_) => return false,
         }        
