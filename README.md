@@ -9,4 +9,16 @@ The whole data structure is based on a single buffer or slice. This enables atta
 ## Details
 
 The structure of the buffer:
-| # buckets | # members | index to the first member in the 1st bucket | index to the first member in the 2nd bucket | ... | index to the first member of the last bucket | 1st bucket | 2nd bucket | ... | last bucket |
+
+| Field                                        | Type    |
+| -------------------------------------------- | ------- |
+| # buckets                                    | `usize` |
+| # members                                    | `usize` |
+| index to the first member in the 1st bucket  | `usize` |
+| index to the first member in the 2nd bucket  | `usize` |
+| ...                                          |         |
+| index to the first member of the last bucket | `usize` |
+| 1st bucket                                   | `[T]`   |
+| 2nd bucket                                   | `[T]`   |
+| ...                                          |         |
+| last bucket                                  | `[T]`   |
