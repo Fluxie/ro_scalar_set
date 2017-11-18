@@ -58,6 +58,30 @@ mod tests {
     }
 
     #[test]
+    fn testing_for_common_member_succeeds_i32()
+    {
+
+        // Prepare test set.
+        let values: Vec<i32> = ( 0..25 ).collect();
+        let common_value: Vec<i32> = ( 0..1 ).collect();
+
+        // Run the test.
+        testing_for_common_member_succeeds( &values, &common_value );
+    }
+
+    #[test]
+    fn testing_for_no_common_member_succeeds_i32()
+    {
+
+        // Prepare test set.
+        let values: Vec<i32> = ( 0..25 ).collect();
+        let common_value: Vec<i32> = ( 26..27 ).collect();
+
+        // Run the test.
+        testing_for_no_common_member_succeeds( &values, &common_value );
+    }
+
+    #[test]
     fn empty_set_is_empty_f32()
     {
 
@@ -169,6 +193,38 @@ mod tests {
 
         // Assert.
         assert( &set, values_in_set, negative_test );
+    }
+
+    /// Verifies that checking for a common value with the "any" method succeeds.
+    fn testing_for_common_member_succeeds<T>(
+        values: &Vec<T>,
+        common_value: &Vec<T>
+    ) where
+        T: ro_scalar_set::Value + std::clone::Clone,
+    {
+
+        // Prepare test values.
+        let set = ro_scalar_set::RoScalarSet::new( values );
+        let set_common_value = ro_scalar_set::RoScalarSet::new( common_value );
+
+        // Assert.
+        assert!( set.any( &set_common_value ) );
+    }
+
+    /// Verifies that checking for that two sets have not values in  common value with the "any" method.
+    fn testing_for_no_common_member_succeeds<T>(
+        values: &Vec<T>,
+        non_common_value: &Vec<T>
+    ) where
+        T: ro_scalar_set::Value + std::clone::Clone,
+    {
+
+        // Prepare test values.
+        let set = ro_scalar_set::RoScalarSet::new( values );
+        let set_non_common_values = ro_scalar_set::RoScalarSet::new( non_common_value );
+
+        // Assert.
+        assert!( ! set.any( &set_non_common_values ) );
     }
 
     /// Asserts the existance of values in a set.

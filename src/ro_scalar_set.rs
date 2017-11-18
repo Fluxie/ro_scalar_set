@@ -317,6 +317,38 @@ where
         let storage: Storage<T, T> = Storage::Slice { data: set };
         return Ok( ( RoScalarSet { _storage: storage }, remainder ) );
     }
+
+    /// Checks if any the sets have anything in common.
+    pub fn any(
+        &self,
+        other: &RoScalarSet<T>,
+    ) -> bool
+    {
+        // Determine the smaller set.
+        let small;
+        let large;
+        if other.size() < self.size()
+        {
+            small = other;
+            large = self;
+        }
+        else
+        {
+            small = self;
+            large = other;
+        }
+
+        // For better performance we iterate the smaller set.
+        for s in small.borrow_values()
+        {
+            if large.contains( s )
+            {
+                return true;
+            }
+        }
+
+        // Values was not found.
+        return false;
     }
 
     /// Checks whether the given value exists in the set or not.
@@ -384,6 +416,13 @@ where
         return bucket;
     }
 
+    /// Borrows the values of the set.
+    fn borrow_values( &'a self ) -> &'a [T]
+    {
+        // Split the value part from the storage.
+        let start = FIRST_BUCKET_INDEX + self.bucket_count() + 1;
+        let ( _, values ) = self.borrow_storage().split_at( start );
+        return values;
     }
 
 
