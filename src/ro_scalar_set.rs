@@ -383,7 +383,7 @@ where
     }
 
 
-    /// Borrows the storage for accessing the values.
+    /// Borrows the storage fo<TA, TB>r accessing the values.
     fn borrow_storage( &'a self ) -> &'a [T]
     {
         let s: &'a [T] = match &self._storage
