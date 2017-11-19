@@ -217,6 +217,27 @@ where
     _storage: Storage<'a, T, T>,
 }
 
+impl<'a, T> Clone for RoScalarSet<'a, T>
+where
+    T: std::clone::Clone + Value + 'a,
+{
+    /// Returns a copy of the value.
+    fn clone( &self ) -> Self
+    {
+        RoScalarSet::new( self.borrow_values() )
+    }
+
+    /// Performs copy-assignment from source.
+    fn clone_from(
+        &mut self,
+        source: &Self,
+    )
+    {
+        let storage = RoScalarSet::create_storage( source.borrow_values() );
+        self._storage = storage;
+    }
+}
+
 impl<'a, T> RoScalarSet<'a, T>
 where
     T: std::clone::Clone + Value + 'a,
@@ -228,71 +249,7 @@ where
     /// * 'values' Holds the values stored in the hash set.
     pub fn new<'b, 'c>( values: &'c [T] ) -> RoScalarSet<'b, T>
     {
-        // Determine the number of buckets. We introduce a 5% overhead.
-        let bucket_count: usize = ( values.len() as f64 * 0.05 ).ceil() as usize;
-        let mut storage: Vec<T> = vec![T::zero(); ( FIRST_BUCKET_INDEX + bucket_count + 1 + values.len() )];
-
-        // Store the number of buckets.
-        let buckets = T::from_bucket_count( &bucket_count );
-        storage[0] = buckets.clone();
-
-        // Store the number of members.
-        storage[SIZE_INDEX] = T::from_member_count( values.len() );
-
-        // Count the values required for each bucket.
-        let mut values_in_buckets: Vec<i32> = vec![0; bucket_count];
-        for v in values
-        {
-            let bucket = v.get_bucket_index( &buckets );
-            values_in_buckets[bucket] += 1;
-        }
-
-        // Set bucket pointers to point the end of each bucket.
-        // They will be decrements one-by-one when the buckets are filled.
-        let first_bucket: usize = FIRST_BUCKET_INDEX;
-        let data_start: usize = FIRST_BUCKET_INDEX + bucket_count + 1;
-        let mut previous_bucket_end = data_start;
-        for b in 0..bucket_count
-        {
-            // The end of the previous bucket is the start of the previous bucket.
-            let index = previous_bucket_end + values_in_buckets[b].as_index();
-            storage[b + first_bucket] = T::from_index( index );
-            previous_bucket_end = index;
-        }
-
-        // Fix the end of the last bucket.
-        storage[first_bucket + bucket_count] = T::from_index( storage.len() );
-
-        // Put values into buckets.
-        for v in values
-        {
-            // Determine bucket for the value.
-            let bucket_id = v.get_bucket_index( &buckets );
-
-            // Make room for the new value.
-            storage[bucket_id + first_bucket] = storage[bucket_id + first_bucket].decrement();
-            let value_index: usize = storage[bucket_id + first_bucket].as_index();
-            storage[value_index] = v.clone();
-        }
-
-        // Sort each bucket to enable binary search.
-        for b in 0..bucket_count
-        {
-            // Determine the location of the bucket.
-            let begin: usize = storage[b + first_bucket].as_index();
-            let end: usize = storage[b + first_bucket + 1].as_index();
-            if end < begin
-            {
-                panic!( "Invalid bucket: {}", b );
-            }
-
-            // Get a splice for sorting.
-            let ( _, remainder ) = storage.split_at_mut( begin );
-            let ( bucket, _ ) = remainder.split_at_mut( end - begin );
-            bucket.sort_by( |a, b| a.cmp( b ) );
-        }
-
-        let storage: Storage<'b, T, T> = Storage::Vector { data: storage };
+        let storage = RoScalarSet::create_storage( values );
         return RoScalarSet { _storage: storage };
     }
 
@@ -435,5 +392,76 @@ where
             &Storage::Slice { ref data } => data,
         };
         return s;
+    }
+
+    /// Creates a new storage buffer from the given values.
+    fn create_storage( values: &[T] ) -> Storage<'a, T, T>
+    {
+        // Determine the number of buckets. We introduce a 5% overhead.
+        let bucket_count: usize = ( values.len() as f64 * 0.05 ).ceil() as usize;
+        let mut storage: Vec<T> = vec![T::zero(); ( FIRST_BUCKET_INDEX + bucket_count + 1 + values.len() )];
+
+        // Store the number of buckets.
+        let buckets = T::from_bucket_count( &bucket_count );
+        storage[0] = buckets.clone();
+
+        // Store the number of members.
+        storage[SIZE_INDEX] = T::from_member_count( values.len() );
+
+        // Count the values required for each bucket.
+        let mut values_in_buckets: Vec<i32> = vec![0; bucket_count];
+        for v in values
+        {
+            let bucket = v.get_bucket_index( &buckets );
+            values_in_buckets[bucket] += 1;
+        }
+
+        // Set bucket pointers to point the end of each bucket.
+        // They will be decrements one-by-one when the buckets are filled.
+        let first_bucket: usize = FIRST_BUCKET_INDEX;
+        let data_start: usize = FIRST_BUCKET_INDEX + bucket_count + 1;
+        let mut previous_bucket_end = data_start;
+        for b in 0..bucket_count
+        {
+            // The end of the previous bucket is the start of the previous bucket.
+            let index = previous_bucket_end + values_in_buckets[b].as_index();
+            storage[b + first_bucket] = T::from_index( index );
+            previous_bucket_end = index;
+        }
+
+        // Fix the end of the last bucket.
+        storage[first_bucket + bucket_count] = T::from_index( storage.len() );
+
+        // Put values into buckets.
+        for v in values
+        {
+            // Determine bucket for the value.
+            let bucket_id = v.get_bucket_index( &buckets );
+
+            // Make room for the new value.
+            storage[bucket_id + first_bucket] = storage[bucket_id + first_bucket].decrement();
+            let value_index: usize = storage[bucket_id + first_bucket].as_index();
+            storage[value_index] = v.clone();
+        }
+
+        // Sort each bucket to enable binary search.
+        for b in 0..bucket_count
+        {
+            // Determine the location of the bucket.
+            let begin: usize = storage[b + first_bucket].as_index();
+            let end: usize = storage[b + first_bucket + 1].as_index();
+            if end < begin
+            {
+                panic!( "Invalid bucket: {}", b );
+            }
+
+            // Get a splice for sorting.
+            let ( _, remainder ) = storage.split_at_mut( begin );
+            let ( bucket, _ ) = remainder.split_at_mut( end - begin );
+            bucket.sort_by( |a, b| a.cmp( b ) );
+        }
+
+        let storage: Storage<'a, T, T> = Storage::Vector { data: storage };
+        storage
     }
 }
