@@ -167,7 +167,7 @@ impl Value for f32
         return self - 1.0;
     }
 
-    /// Provides total ordering for elements.
+    /// Provides total ordering for Value elements.
     fn cmp(
         &self,
         other: &f32,
@@ -189,10 +189,10 @@ impl Value for f32
     }
 }
 
-/// The index of the number of members in the set.
+/// The index or position in the array that holds the number of members in the set.
 const SIZE_INDEX: usize = 1;
 
-/// The index of the first bucket.
+/// The index or position in the array that holds the index to the first value of the first bucket.
 const FIRST_BUCKET_INDEX: usize = 2;
 
 /// Defines how the data is stored in the scalar set.
@@ -204,7 +204,7 @@ where
     Vector
     { data: Vec<TA> },
 
-    /// The data is stored as a slice.
+    /// The data is stored in a slice. Not owned by the scalar set.
     Slice
     { data: &'a [TB] },
 }
@@ -221,13 +221,13 @@ impl<'a, T> Clone for RoScalarSet<'a, T>
 where
     T: std::clone::Clone + Value + 'a,
 {
-    /// Returns a copy of the value.
+    /// Returns a copy of the set.
     fn clone( &self ) -> Self
     {
         RoScalarSet::new( self.borrow_values() )
     }
 
-    /// Performs copy-assignment from source.
+    /// Copies the content from the given set.alloc
     fn clone_from(
         &mut self,
         source: &Self,
@@ -257,7 +257,7 @@ where
     ///
     /// # ArgumentRoScalarSets
     ///
-    /// * 'values' Holds the values stored in the hash set.
+    /// * 'values' Slice that holds the values stored in the hash set.
     pub fn attach<'b>( buffer: &'b [T] ) -> Result<( RoScalarSet<'b, T>, &'b [T] ), &str>
     {
         // Determine the length of this scalar set.
@@ -356,7 +356,7 @@ where
         Ok( () )
     }
 
-    /// Gets a read-only slice containing the values of a bucket.
+    /// Gets a read-only slice containing the values of a bucket that holdes the given value.
     fn get_bucket(
         &self,
         value: &T,
@@ -382,8 +382,7 @@ where
         return values;
     }
 
-
-    /// Borrows the storage fo<TA, TB>r accessing the values.
+    /// Borrows the storage for accessing the values.
     fn borrow_storage( &'a self ) -> &'a [T]
     {
         let s: &'a [T] = match &self._storage
@@ -417,7 +416,8 @@ where
         }
 
         // Set bucket pointers to point the end of each bucket.
-        // They will be decrements one-by-one when the buckets are filled.
+        // This way we can use the bucket pointers to track the next empty position when
+        // distributing the values into the buckets.
         let first_bucket: usize = FIRST_BUCKET_INDEX;
         let data_start: usize = FIRST_BUCKET_INDEX + bucket_count + 1;
         let mut previous_bucket_end = data_start;
@@ -441,6 +441,8 @@ where
             // Make room for the new value.
             storage[bucket_id + first_bucket] = storage[bucket_id + first_bucket].decrement();
             let value_index: usize = storage[bucket_id + first_bucket].as_index();
+
+            // And finally store the value.
             storage[value_index] = v.clone();
         }
 
@@ -455,7 +457,7 @@ where
                 panic!( "Invalid bucket: {}", b );
             }
 
-            // Get a splice for sorting.
+            // Get a splice that represents the bucket and sort it.
             let ( _, remainder ) = storage.split_at_mut( begin );
             let ( bucket, _ ) = remainder.split_at_mut( end - begin );
             bucket.sort_by( |a, b| a.cmp( b ) );
