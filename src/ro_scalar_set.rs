@@ -398,7 +398,7 @@ where
     {
         // Determine the number of buckets. We introduce a 5% overhead.
         let bucket_count: usize = ( values.len() as f64 * 0.05 ).ceil() as usize;
-        let mut storage: Vec<T> = vec![T::zero(); FIRST_BUCKET_INDEX + bucket_count + 1 + values.len()];
+        let mut storage: Vec<T> = vec![T::zero(); FIRST_BUCKET_INDEX + bucket_count + 1 + values.len() ];
 
         // Store the number of buckets.
         let buckets = T::from_bucket_count( &bucket_count );
@@ -463,7 +463,6 @@ where
             bucket.sort_by( |a, b| a.cmp( b ) );
         }
 
-        let storage: Storage<'a, T, T> = Storage::Vector { data: storage };
-        storage
+        Storage::Vector { data: storage }
     }
 }
